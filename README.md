@@ -63,4 +63,10 @@ d nuke  # confirm deletion 💣
 
 ---
 
+## 🏷 Credits
+
+Created with ❤️ by **886ppak** & **Docki 🤖**, your friendly Docker Compose AI helper.
+
+---
+
 Enjoy simple, safe, and portable Docker Compose management! 🐳🎉
