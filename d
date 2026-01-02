@@ -4,7 +4,6 @@
 # ------------------------
 
 COMPOSE_FILES=("docker-compose.yml" "docker-compose.yaml" "compose.yml" "compose.yaml")
-
 CMD="$1"
 shift
 
@@ -167,4 +166,7 @@ case "$CMD" in
         echo "  d logs|dl [svc]  Follow logs"
         echo "  d pull|du        Pull latest images"
         echo "  d dn             Preview nuke (dry-run)"
-        echo "  d DN             Full nuke
+        echo "  d DN             Full nuke (requires YES confirmation)"
+        echo "  d uninstall      Remove script and dh alias"
+        ;;
+esac
