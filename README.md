@@ -5,44 +5,62 @@ Start, stop, restart, pull images, view status/logs, or safely “nuke” a stac
 
 ---
 
-Install:  
-sudo curl -fsSL https://raw.githubusercontent.com/886ppak/docker-d-script/main/d -o /sbin/d && sudo chmod +x /sbin/d ✅
+## ⚡ Install
+
+Run this one-liner to download the script and make it executable:
+
+```bash
+sudo curl -fsSL https://raw.githubusercontent.com/886ppak/docker-d-script/main/d -o /sbin/d && sudo chmod +x /sbin/d
+```
+
+*(GitHub will automatically show a “Copy” button for this block)*
 
 ---
 
-Usage:  
-d start             # ▶ Start stack  
-d stop              # ⏹ Stop stack  
-d restart           # 🔄 Restart stack  
-d ps | status       # 📋 Show all containers on host  
-d logs [service]    # 📜 Tail logs  
-d pull              # ⬇ Pull latest images  
+## 🛠 Usage
+
+```bash
+d start             # ▶ Start stack
+d stop              # ⏹ Stop stack
+d restart           # 🔄 Restart stack
+d ps | status       # 📋 Show all containers on host
+d logs [service]    # 📜 Tail logs
+d pull              # ⬇ Pull latest images
 d nuke [--dry-run]  # 💣 Remove containers, volumes, images, networks, and top-level host folders
+```
 
 ---
 
-📝 Dry-Run Mode:  
-cd /home/docker/my-stack  
-d nuke --dry-run  
+## 📝 Dry-Run Mode
+
+```bash
+cd /home/docker/my-stack
+d nuke --dry-run
+```
+
 - Shows containers, images, volumes, networks, and host folders that would be removed  
 - Prompts before deleting any top-level host folder ⚠️✅
 
 ---
 
-🚀 Quick Example:  
-cd /home/docker/termix  
-d start  
-d ps  
-d logs termix  
-d pull  
-d stop  
-d nuke --dry-run  
+## 🚀 Quick Example
+
+```bash
+cd /home/docker/termix
+d start
+d ps
+d logs termix
+d pull
+d stop
+d nuke --dry-run
 d nuke  # execute after confirmation 💣
+```
 
 ---
 
-✅ Safety Notes:  
-- --dry-run ensures you never delete data accidentally  
+## ✅ Safety Notes
+
+- `--dry-run` ensures you never delete data accidentally  
 - Only networks created by the stack are removed; existing networks remain intact 🌐  
 - Works with multiple Docker Compose stacks — just cd into the project directory and run d 🐳
 
