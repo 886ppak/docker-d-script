@@ -2,8 +2,9 @@
 A fast, minimal command wrapper for Docker Compose stacks. Built for speed, safety, and clean workflows 🚀
 ---
 ## ⚡ One-Line Install
+```bash
 sudo curl -fsSL https://raw.githubusercontent.com/886ppak/docker-d-script/main/d -o /sbin/d && sudo chmod +x /sbin/d
-✅ After install, run `d dps` or `d dn --dry-run` to test.
+```bash
 ---
 ## 🧭 First-Time Setup
 Set your Docker workspace location (edit the path if needed).  
