@@ -13,14 +13,16 @@ shift || true
 # -------------------------------------------------
 case "$CMD" in
     ps|dps)
+        echo "📋 Showing all containers on host:"
         docker ps -a
         exit 0
         ;;
 esac
 
 # -------------------------------------------------
-# Locate compose file
+# Locate docker-compose file
 # -------------------------------------------------
+COMPOSE_FILE=""
 for f in "${COMPOSE_FILES[@]}"; do
     [[ -f "$f" ]] && COMPOSE_FILE="$f" && break
 done
@@ -46,43 +48,51 @@ get_host_volumes() {
 case "$CMD" in
 
     dup)
+        echo "▶ Starting stack..."
         docker compose -f "$COMPOSE_FILE" up -d
         ;;
 
     dc)
+        echo "⏹ Stopping stack..."
         docker compose -f "$COMPOSE_FILE" down
         ;;
 
     dr)
+        echo "🔄 Restarting stack..."
         docker compose -f "$COMPOSE_FILE" down
         docker compose -f "$COMPOSE_FILE" up -d
         ;;
 
     dl)
+        echo "📜 Following logs (Ctrl+C to exit)..."
         docker compose -f "$COMPOSE_FILE" logs -f "$@"
         ;;
 
     du)
+        echo "⬇ Pulling latest images..."
         docker compose -f "$COMPOSE_FILE" pull
         ;;
 
     dn)
-        echo "🧪 DRY RUN — nothing will be deleted"
+        echo "🧪 Dry-run — preview what would be deleted:"
+        echo "📦 Containers:"
         docker compose -f "$COMPOSE_FILE" ps
+        echo "🖼 Images:"
         docker compose -f "$COMPOSE_FILE" images
+        echo "💾 Volumes:"
         docker compose -f "$COMPOSE_FILE" config --volumes
-        echo "🗑 Top-level host folders that would be removed:"
+        echo "🗑 Top-level host folders:"
         get_host_volumes | while read -r dir; do
-            echo "  - $dir"
+            [[ -d "$dir" ]] && echo "  ✅ $dir" || echo "  ⚠ $dir (not found)"
         done
         ;;
 
     DN)
         echo "💣⚠ WARNING: This will permanently remove containers, images, volumes, and host folders!"
         
-        # Dry-run first
+        # Dry-run preview
         echo "📝 Preview:"
-        echo "📦 Containers to be stopped and removed:"
+        echo "📦 Containers to be stopped:"
         docker compose -f "$COMPOSE_FILE" ps --services --all | while read svc; do
             echo "  - $svc"
         done
@@ -97,22 +107,23 @@ case "$CMD" in
             echo "  - $vol"
         done
 
-        echo "🗑 Host folders that would be removed:"
+        echo "🗑 Host folders to be removed:"
         TOP_FOLDERS=$(get_host_volumes)
         for dir in $TOP_FOLDERS; do
             [[ -d "$dir" ]] && echo "  ✅ $dir" || echo "  ⚠ $dir (not found)"
         done
 
         # Confirmation
-        read -rp "⚠ Are you sure you want to proceed with full stack deletion? Type 'YES' to confirm: " CONFIRM
+        read -rp "⚠ Type 'YES' to confirm full deletion: " CONFIRM
         if [[ "$CONFIRM" != "YES" ]]; then
             echo "⏹ Aborted. Nothing was deleted."
             exit 0
         fi
 
-        # Proceed with deletion
+        # Delete stack
         docker compose -f "$COMPOSE_FILE" down --volumes --remove-orphans
 
+        # Remove host folders
         for dir in $TOP_FOLDERS; do
             if [[ -d "$dir" ]]; then
                 echo "🗑 Removing folder: $dir"
@@ -123,6 +134,29 @@ case "$CMD" in
         echo "✅ Full stack deleted."
         ;;
 
+    uninstall)
+        SCRIPT_PATH=$(realpath "$0")
+        echo "🗑 This will remove the 'd' script at: $SCRIPT_PATH"
+        echo "🗑 This will also remove your 'dh' alias and DOCKER_HOME from ~/.bashrc"
+
+        read -rp "⚠ Type YES to confirm uninstall and revert all changes: " CONFIRM
+        if [[ "$CONFIRM" != "YES" ]]; then
+            echo "⏹ Aborted. Nothing was deleted."
+            exit 0
+        fi
+
+        echo "🗑 Removing the 'd' script..."
+        sudo rm -f "$SCRIPT_PATH"
+
+        echo "🗑 Removing aliases and DOCKER_HOME from ~/.bashrc..."
+        sed -i '/alias dh=/d' ~/.bashrc
+        sed -i '/DOCKER_HOME=/d' ~/.bashrc
+        source ~/.bashrc
+
+        echo "✅ 'd' script and all related changes have been reverted!"
+        exit 0
+        ;;
+
     *)
         echo "Usage:"
         echo "  dps             Show all containers"
@@ -130,9 +164,10 @@ case "$CMD" in
         echo "  dc              Stop stack"
         echo "  dr              Restart stack"
         echo "  dl              Follow logs"
-        echo "  du              Pull images"
+        echo "  du              Pull latest images"
         echo "  dn              Dry-run (preview deletes)"
         echo "  DN              Full nuke (requires confirmation, uppercase)"
+        echo "  d uninstall     Remove script and revert aliases"
         exit 1
         ;;
 esac
