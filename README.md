@@ -7,10 +7,11 @@ sudo curl -fsSL https://raw.githubusercontent.com/886ppak/docker-d-script/main/d
 ```
 ---
 ## 🧭 First-Time Setup
-Set your Docker workspace location (edit the path if needed).  
-> **Note:** In your shell, just use a plain path — Markdown formatting like bold/underline won't work in bash.
+Set your Docker workspace location (edit the path if needed).
 # Edit this path to match your Docker folder
-DOCKER_HOME="/home/docker"   # 🔹 Change this path to your Docker folder
+```bash
+echo "alias dh='cd /home/docker'" >> ~/.bashrc && source ~/.bashrc
+```
 # Add alias to jump to your Docker folder
 echo "alias dh='cd \$DOCKER_HOME'" >> ~/.bashrc
 source ~/.bashrc
