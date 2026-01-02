@@ -1,72 +1,69 @@
-# 🐳 Docker Compose Helper Script (`d`) – Cheatsheet
+# 📦 d — Docker Stack Power Tool
 
-Quick reference for `d` — manage Docker Compose stacks with ease! ⚡  
+A fast, minimal command wrapper for Docker Compose stacks.  
+Built for speed, safety, and clean workflows 🚀
 
 ---
 
-## ⚡ Install
+## ⚡ One-Line Install
 
 ```bash
 sudo curl -fsSL https://raw.githubusercontent.com/886ppak/docker-d-script/main/d -o /sbin/d && sudo chmod +x /sbin/d
 ```
 
-*(Copy button available on GitHub)*
+---
+
+## 🧭 First-Time Setup (Required)
+
+Set your Docker workspace location (edit the path if needed):
+
+```bash
+DOCKER_HOME="<u>**/home/docker**</u>"  # 🔹 Change this path to your Docker folder
+echo "alias dh='cd \$DOCKER_HOME'" >> ~/.bashrc
+source ~/.bashrc
+```
+
+✅ After this, just type:
+
+```bash
+dh
+```
+
+to jump into your Docker workspace.
 
 ---
 
 ## 🛠 Usage Commands
 
 ```bash
-d start             # ▶ Start stack
-d stop              # ⏹ Stop stack
-d restart           # 🔄 Restart stack
-d ps | status       # 📋 Show all containers (running + stopped)
-d logs [service]    # 📜 Tail logs
-d pull              # ⬇ Pull latest images
-d nuke [--dry-run]  # 💣 Preview deletion without touching anything
-d nuke              # 💣 Execute deletion (after confirmation)
+dps             # 📋 Show all containers
+dup             # ▶ Start stack (docker compose up -d)
+dc              # ⏹ Stop stack
+dr              # 🔄 Restart stack
+dl              # 📜 Follow logs
+du              # ⬇ Pull latest images
+
+dn              # 🧪 Dry-run (preview what would be deleted)
+DN              # 💣 Full nuke (requires confirmation, uppercase)
 ```
 
 ---
 
-## 📝 Dry-Run Mode Example
+### 💥 Example Workflow
 
 ```bash
-cd /home/docker/my-stack
-d nuke --dry-run
-```
-
-- Safe way to check what will be deleted before running the real `d nuke`  
-
----
-
-## 🚀 Quick Example
-
-```bash
-cd /home/docker/termix
-d start
-d ps
-d logs termix
-d pull
-d stop
-d nuke --dry-run
-d nuke  # confirm deletion 💣
+dh
+dps
+dup
+dl
+dn    # Preview deletion
+DN    # Execute full nuke with confirmation
 ```
 
 ---
 
-## ✅ Safety Notes
+### 👤 Author
 
-- `--dry-run` prevents accidental data loss  
-- Only removes networks created by the stack 🌐  
-- Works across multiple Docker Compose projects — just `cd` into the folder and run d 🐳  
+Created by **@886ppak**  
+Built for people who live in the terminal 🚀
 
----
-
-## 🏷 Credits
-
-Created with ❤️ by **886ppak** & **Docki 🤖**, your friendly Docker Compose AI helper.
-
----
-
-Enjoy simple, safe, and portable Docker Compose management! 🐳🎉
