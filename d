@@ -1,53 +1,56 @@
 #!/bin/bash
-# ----------------------------------------
+# =========================================
 # d — Docker Compose Helper
-# ----------------------------------------
+# =========================================
 
 COMPOSE_FILES=("docker-compose.yml" "docker-compose.yaml" "compose.yml" "compose.yaml")
 
-# ----------------------------------------
-# Find compose file
-# ----------------------------------------
-for f in "${COMPOSE_FILES[@]}"; do
-    [[ -f "$f" ]] && COMPOSE_FILE="$f" && break
-done
+CMD="$1"
+shift
 
-# Commands that don't require compose
-case "$1" in
+# ----------------------------
+# Commands that do NOT require compose
+# ----------------------------
+case "$CMD" in
     uninstall)
         echo "⚠ Removing d command..."
         sudo rm -f /sbin/d
         sed -i '/alias dh=/d' ~/.bashrc
-        echo "✅ d removed. Restart shell to finish."
+        echo "✅ d removed. Restart shell to apply."
         exit 0
         ;;
-    dps)
+    dps|status)
         docker ps -a
         exit 0
         ;;
 esac
+
+# ----------------------------
+# Find compose file
+# ----------------------------
+COMPOSE_FILE=""
+for f in "${COMPOSE_FILES[@]}"; do
+    [[ -f "$f" ]] && COMPOSE_FILE="$f" && break
+done
 
 if [[ -z "$COMPOSE_FILE" ]]; then
     echo "❌ No docker-compose file found in $(pwd)"
     exit 1
 fi
 
-# ----------------------------------------
-# Helpers
-# ----------------------------------------
+# ----------------------------
+# Extract top-level host folders (SAFE)
+# ----------------------------
 get_host_folders() {
-    docker compose -f "$COMPOSE_FILE" config \
-    | awk '/- \.\// {print $2}' \
-    | sed 's|^\./||' \
-    | awk -F/ '{print "./"$1}' \
+    grep -E '^[[:space:]]*-[[:space:]]*(\.\/|/)' "$COMPOSE_FILE" \
+    | sed -E 's/.*-\s*([^:]+).*/\1/' \
+    | awk -F/ '{print $1"/"$2}' \
     | sort -u
 }
 
-# ----------------------------------------
-# Main Commands
-# ----------------------------------------
-CMD="$1"
-
+# ----------------------------
+# Command handlers
+# ----------------------------
 case "$CMD" in
 
     dup|start)
@@ -64,57 +67,63 @@ case "$CMD" in
         ;;
 
     dl|logs)
-        docker compose -f "$COMPOSE_FILE" logs -f
+        docker compose -f "$COMPOSE_FILE" logs -f "$@"
         ;;
 
     du|pull)
         docker compose -f "$COMPOSE_FILE" pull
         ;;
 
-    dn)
-        echo "🧪 DRY RUN — nothing will be deleted"
-        echo
-        echo "📦 Containers:"
-        docker compose -f "$COMPOSE_FILE" ps --services
+    dn|DN)
+        DRY_RUN=1
+        [[ "$CMD" == "DN" ]] && DRY_RUN=0
 
-        echo
-        echo "🗂 Folders to be removed:"
-        get_host_folders | sed 's/^/  - /'
-        ;;
-
-    DN)
         echo "💣 FULL NUKE MODE"
-        echo
+        echo "------------------------------------"
+
+        CONTAINERS=$(docker compose -f "$COMPOSE_FILE" ps --services)
+        IMAGES=$(docker compose -f "$COMPOSE_FILE" images -q)
+        FOLDERS=$(get_host_folders)
+
         echo "Containers:"
-        docker compose -f "$COMPOSE_FILE" ps --services
-        echo
+        echo "$CONTAINERS" | sed 's/^/  - /'
+
         echo "Folders:"
-        get_host_folders | sed 's/^/  - /'
+        for f in $FOLDERS; do
+            echo "  - $f"
+        done
+
+        if [[ $DRY_RUN -eq 1 ]]; then
+            echo
+            echo "🧪 DRY RUN — nothing will be deleted."
+            exit 0
+        fi
+
         echo
-        read -p "Type YES to continue: " CONFIRM
+        read -rp "Type YES to confirm FULL DELETION: " CONFIRM
         [[ "$CONFIRM" != "YES" ]] && echo "Aborted." && exit 1
 
         docker compose -f "$COMPOSE_FILE" down --volumes --remove-orphans
 
-        for dir in $(get_host_folders); do
+        for dir in $FOLDERS; do
             if [[ -d "$dir" ]]; then
                 echo "🗑 Removing $dir"
                 rm -rf "$dir"
             fi
         done
 
-        echo "✅ Stack fully removed."
+        echo "✅ Full stack removed."
         ;;
 
     *)
         echo "Usage:"
-        echo "  d dup        Start stack"
-        echo "  d dc         Stop stack"
-        echo "  d dr         Restart stack"
-        echo "  d dl         Logs"
-        echo "  d du         Pull images"
-        echo "  d dn         Dry-run nuke"
-        echo "  d DN         Full nuke"
-        echo "  d uninstall  Remove script"
+        echo "  d dup        → start stack"
+        echo "  d dc         → stop stack"
+        echo "  d dr         → restart"
+        echo "  d dl         → logs"
+        echo "  d du         → pull images"
+        echo "  d dn         → dry-run delete preview"
+        echo "  d DN         → full destructive delete"
+        echo "  d uninstall  → remove script"
         ;;
 esac
