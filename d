@@ -1,19 +1,58 @@
 #!/bin/bash
-# -------------------------------
-# Docker Compose helper script — full commands + shortcuts
-# -------------------------------
+# ------------------------
+# d - Docker Compose helper script
+# ------------------------
 
-# -------------------------------
+COMPOSE_FILES=("docker-compose.yml" "docker-compose.yaml" "compose.yml" "compose.yaml")
+
+CMD="$1"
+shift
+
+# ------------------------
+# Commands that do NOT need a compose file
+# ------------------------
+case "$CMD" in
+    uninstall)
+        echo "⚠ Removing 'd' script and dh alias..."
+        sudo rm -f /sbin/d
+        sed -i '/alias dh=/d' ~/.bashrc
+        echo "✅ 'd' script removed. Reload shell to remove alias: source ~/.bashrc"
+        exit 0
+        ;;
+    dps|status)
+        echo "📋 All containers on host:"
+        docker ps -a
+        exit 0
+        ;;
+esac
+
+# ------------------------
+# Find Docker Compose file for the rest
+# ------------------------
+COMPOSE_FILE=""
+for file in "${COMPOSE_FILES[@]}"; do
+    if [[ -f "$file" ]]; then
+        COMPOSE_FILE="$file"
+        break
+    fi
+done
+
+if [[ -z "$COMPOSE_FILE" ]]; then
+    echo "❌ No docker-compose file found in $(pwd)"
+    exit 1
+fi
+
+# ------------------------
 # Require Docker
-# -------------------------------
+# ------------------------
 if ! command -v docker &>/dev/null; then
     echo "❌ Docker not installed or not in PATH"
     exit 1
 fi
 
-# -------------------------------
-# Helper functions
-# -------------------------------
+# ------------------------
+# Helper: get host folders from compose volumes
+# ------------------------
 get_host_volumes() {
     grep -E '^[[:space:]]*- ' "$COMPOSE_FILE" | while read -r line; do
         vol=$(echo "$line" | sed 's/^- //')
@@ -24,34 +63,12 @@ get_host_volumes() {
     done
 }
 
-# -------------------------------
-# Find docker-compose file in current directory
-# -------------------------------
-COMPOSE_FILE=""
-for file in docker-compose.yml docker-compose.yaml compose.yml compose.yaml; do
-    if [[ -f "$file" ]]; then
-        COMPOSE_FILE="$PWD/$file"
-        break
-    fi
-done
-
-if [[ -z "$COMPOSE_FILE" ]]; then
-    echo "❌ No docker-compose file found in $(pwd)"
-    exit 1
-fi
-
-# -------------------------------
-# Parse command
-# -------------------------------
-CMD="$1"
-shift || true
-
-# -------------------------------
-# Commands mapping (shortcuts + full)
-# -------------------------------
+# ------------------------
+# Main commands
+# ------------------------
 case "$CMD" in
     start|dup)
-        echo "▶ Starting stack"
+        echo "▶ Starting stack using $COMPOSE_FILE"
         docker compose -f "$COMPOSE_FILE" up -d
         ;;
 
@@ -67,7 +84,7 @@ case "$CMD" in
         ;;
 
     logs|dl)
-        echo "📜 Following logs (Ctrl+C to exit)"
+        echo "📜 Logs (Ctrl+C to exit)"
         docker compose -f "$COMPOSE_FILE" logs -f "$@"
         ;;
 
@@ -76,98 +93,78 @@ case "$CMD" in
         docker compose -f "$COMPOSE_FILE" pull
         ;;
 
-    ps|status|dps)
-        echo "📋 All containers on host:"
-        docker ps -a
-        ;;
-
-    dn)  # 🧪 Dry-run preview
-        echo "🧪 Dry-run — preview what would happen if you run DN:"
-        echo "📦 Containers:"
-        docker compose -f "$COMPOSE_FILE" ps --services --all | while read svc; do
-            echo "  - $svc"
-        done
-        echo "🖼 Images:"
-        docker compose -f "$COMPOSE_FILE" images -q | while read img; do
-            echo "  - $img"
-        done
-        echo "💾 Volumes:"
-        docker compose -f "$COMPOSE_FILE" config --volumes | while read vol; do
-            echo "  - $vol"
-        done
-        echo "🗑 Host folders:"
-        get_host_volumes | while read dir; do
-            if [[ "$dir" = ./* ]]; then
-                dir="$PWD/${dir#./}"
-            fi
-            if [[ -d "$dir" ]]; then
-                echo "  ✅ $dir"
-            else
-                echo "  ⚠ $dir (not found)"
-            fi
-        done
-        echo "📝 Dry-run complete — no changes made."
-        ;;
-
-    DN)     # 💣 Full nuke with confirmation
-        echo "💣 WARNING: This will permanently remove containers, images, volumes, and host folders!"
-        echo "📝 Preview:"
-        echo "📦 Containers to be stopped:"
-        docker compose -f "$COMPOSE_FILE" ps --services --all | while read svc; do
-            echo "  - $svc"
-        done
-        echo "🖼 Images to be removed:"
-        docker compose -f "$COMPOSE_FILE" images -q | while read img; do
-            echo "  - $img"
-        done
-        echo "💾 Volumes to be removed:"
-        docker compose -f "$COMPOSE_FILE" config --volumes | while read vol; do
-            echo "  - $vol"
-        done
-        echo "🗑 Host folders to be removed:"
-        get_host_volumes | while read dir; do
-            if [[ "$dir" = ./* ]]; then
-                dir="$PWD/${dir#./}"
-            fi
-            [[ -d "$dir" ]] && echo "  ✅ $dir" || echo "  ⚠ $dir (not found)"
-        done
-        read -p "⚠ Type 'YES' to confirm full deletion: " confirm
-        if [[ "$confirm" != "YES" ]]; then
-            echo "⏹ Aborted — nothing was deleted."
-            exit 1
+    nuke|dn|DN)
+        DRY_RUN=0
+        if [[ "$CMD" == "dn" || "$1" == "--dry-run" ]]; then
+            DRY_RUN=1
         fi
-        docker compose -f "$COMPOSE_FILE" down --volumes --rmi all --remove-orphans
-        get_host_volumes | while read dir; do
-            if [[ "$dir" = ./* ]]; then
-                dir="$PWD/${dir#./}"
-            fi
-            if [[ -d "$dir" ]]; then
-                echo "🗑 Removing folder: $dir"
-                sudo rm -rf "$dir"
-            fi
-        done
-        echo "✅ Full stack deleted."
-        ;;
 
-    uninstall)
-        echo "⚠ Uninstalling script..."
-        sudo rm -f /sbin/d
-        sed -i '/# Docker d script/d' ~/.bashrc
-        echo "✅ Script uninstalled!"
+        echo "💣 Nuking stack: containers, volumes, images, orphans"
+
+        # Gather containers, images, volumes, host folders
+        CONTAINERS=$(docker compose -f "$COMPOSE_FILE" ps --services --all | sort -u)
+        IMAGES=$(docker compose -f "$COMPOSE_FILE" images -q | sort -u)
+        VOLUMES=$(docker compose -f "$COMPOSE_FILE" config --volumes | sort -u)
+        HOST_FOLDERS=$(get_host_volumes)
+
+        if [ $DRY_RUN -eq 1 ]; then
+            echo "📝 Dry-run mode: nothing will be deleted"
+
+            echo "📦 Containers:"
+            echo "$CONTAINERS" | while read c; do echo "  - $c"; done
+
+            echo "🖼 Images:"
+            echo "$IMAGES" | while read i; do echo "  - $i"; done
+
+            echo "💾 Volumes:"
+            echo "$VOLUMES" | while read v; do echo "  - $v"; done
+
+            echo "🗑 Host folders:"
+            echo "$HOST_FOLDERS" | while read f; do
+                if [ -d "$f" ]; then echo "  ✅ $f"; else echo "  ⚠ $f (not found)"; fi
+            done
+
+        else
+            # Real deletion
+            echo "⚠ WARNING: This will permanently remove containers, images, volumes, and host folders!"
+            echo "📝 Preview:"
+            echo "📦 Containers:"
+            echo "$CONTAINERS" | while read c; do echo "  - $c"; done
+            echo "🖼 Images:"
+            echo "$IMAGES" | while read i; do echo "  - $i"; done
+            echo "💾 Volumes:"
+            echo "$VOLUMES" | while read v; do echo "  - $v"; done
+            echo "🗑 Host folders:"
+            echo "$HOST_FOLDERS" | while read f; do echo "  - $f"; done
+
+            read -p "⚠ Type 'YES' to confirm full deletion: " confirm
+            if [[ "$confirm" != "YES" ]]; then
+                echo "⏹ Aborted by user."
+                exit 0
+            fi
+
+            # Remove containers/images/volumes/networks
+            docker compose -f "$COMPOSE_FILE" down --volumes --rmi all --remove-orphans
+
+            # Remove host folders completely
+            for dir in $HOST_FOLDERS; do
+                if [ -d "$dir" ]; then
+                    echo "🗑 Removing folder and all contents: $dir"
+                    sudo rm -rf "$dir"
+                fi
+            done
+
+            echo "✅ Full stack deleted."
+        fi
         ;;
 
     *)
-        echo "❌ Unknown command: $CMD"
         echo "Usage:"
-        echo "  d start|dup          # ▶ Start stack"
-        echo "  d stop|dc            # ⏹ Stop stack"
-        echo "  d restart|dr         # 🔄 Restart stack"
-        echo "  d logs|dl [service]  # 📜 Tail logs"
-        echo "  d pull|du            # ⬇ Pull latest images"
-        echo "  d ps|status|dps      # 📋 Show all containers (running + stopped)"
-        echo "  d dn                 # 🧪 Dry-run preview of full stack removal"
-        echo "  d DN                 # 💣 Nuke with confirmation"
-        echo "  d uninstall           # ❌ Remove script from system"
-        exit 1
-        ;;
-esac
+        echo "  d start|dup       Start stack"
+        echo "  d stop|dc        Stop stack"
+        echo "  d restart|dr     Restart stack"
+        echo "  d dps|status     Show all containers"
+        echo "  d logs|dl [svc]  Follow logs"
+        echo "  d pull|du        Pull latest images"
+        echo "  d dn             Preview nuke (dry-run)"
+        echo "  d DN             Full nuke
