@@ -13,12 +13,17 @@ sudo curl -fsSL https://raw.githubusercontent.com/886ppak/docker-d-script/main/d
 
 ---
 
-## 🧭 First-Time Setup (Required)
+## 🧭 First-Time Setup
 
-Set your Docker workspace location (edit the path if needed):
+Set your Docker workspace location (edit the path if needed).  
+
+> **Note:** In your shell, just use a plain path — Markdown formatting like bold/underline won't work in bash.
 
 ```bash
-DOCKER_HOME="<u>**/home/docker**</u>"  # 🔹 Change this path to your Docker folder
+# Edit this path to match your Docker folder
+DOCKER_HOME="/home/docker"   # 🔹 Change this path to your Docker folder
+
+# Add alias to jump to your Docker folder
 echo "alias dh='cd \$DOCKER_HOME'" >> ~/.bashrc
 source ~/.bashrc
 ```
@@ -45,6 +50,8 @@ du              # ⬇ Pull latest images
 
 dn              # 🧪 Dry-run (preview what would be deleted)
 DN              # 💣 Full nuke (requires confirmation, uppercase)
+
+d uninstall     # ⚠ Remove script and revert aliases (safe uninstall)
 ```
 
 ---
@@ -58,6 +65,7 @@ dup
 dl
 dn    # Preview deletion
 DN    # Execute full nuke with confirmation
+d uninstall  # Optional: completely remove 'd' script and aliases
 ```
 
 ---
@@ -67,3 +75,17 @@ DN    # Execute full nuke with confirmation
 Created by **@886ppak**  
 Built for people who live in the terminal 🚀
 
+---
+
+### ✅ Notes
+
+- **Dry-run (`dn`)** previews deletions, nothing happens until `DN` is confirmed.  
+- **DN** requires typing `YES` before anything is deleted.  
+- **d uninstall** safely removes `/sbin/d` and your `dh` alias in `.bashrc`.  
+- Bold + underline formatting (`<u>**/home/docker**</u>`) is only for GitHub Markdown display, not bash commands.  
+
+---
+
+### 📝 Copy & Paste
+
+You can safely copy each command block above and paste into your terminal or README — commands are fully ready to use.
