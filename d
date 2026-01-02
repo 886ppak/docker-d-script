@@ -1,33 +1,28 @@
 #!/bin/bash
-# ------------------------
-# d - Docker Compose helper script
-# ------------------------
+# -------------------------------------------------
+# d — Docker Stack Helper (Short Command Edition)
+# -------------------------------------------------
 
 COMPOSE_FILES=("docker-compose.yml" "docker-compose.yaml" "compose.yml" "compose.yaml")
 
 CMD="$1"
-shift
+shift || true
 
-# ------------------------
-# Commands that do not need a compose file
-# ------------------------
+# -------------------------------------------------
+# Global commands (no compose required)
+# -------------------------------------------------
 case "$CMD" in
-    ps|status)
-        echo "📋 All containers on host:"
+    ps|dps)
         docker ps -a
         exit 0
         ;;
 esac
 
-# ------------------------
-# Find docker-compose file for the rest
-# ------------------------
-COMPOSE_FILE=""
-for file in "${COMPOSE_FILES[@]}"; do
-    if [[ -f "$file" ]]; then
-        COMPOSE_FILE="$file"
-        break
-    fi
+# -------------------------------------------------
+# Locate compose file
+# -------------------------------------------------
+for f in "${COMPOSE_FILES[@]}"; do
+    [[ -f "$f" ]] && COMPOSE_FILE="$f" && break
 done
 
 if [[ -z "$COMPOSE_FILE" ]]; then
@@ -35,138 +30,109 @@ if [[ -z "$COMPOSE_FILE" ]]; then
     exit 1
 fi
 
-# ------------------------
-# Require Docker
-# ------------------------
-if ! command -v docker &>/dev/null; then
-    echo "❌ Docker not installed or not in PATH"
-    exit 1
-fi
-
-# ------------------------
-# Helper: get host folders from compose volumes
-# ------------------------
+# -------------------------------------------------
+# Helper: Get top-level host folders from volumes
+# -------------------------------------------------
 get_host_volumes() {
-    grep -E '^[[:space:]]*- ' "$COMPOSE_FILE" | while read -r line; do
-        vol=$(echo "$line" | sed 's/^- //')
+    docker compose -f "$COMPOSE_FILE" config --volumes | while read -r vol; do
         host_path=$(echo "$vol" | cut -d: -f1)
-        if [[ "$host_path" = /* || "$host_path" = ./* ]]; then
-            echo "$host_path"
-        fi
-    done
-}
-
-# ------------------------
-# Helper: get top-level folders from host paths
-# ------------------------
-get_top_level_folders() {
-    get_host_volumes | while read -r path; do
-        path="${path%/}"
-        if [[ "$path" = ./* ]]; then
-            echo "./${path#./}" | awk -F/ '{print "./"$2}'
-        else
-            echo "$path" | awk -F/ '{print "/"$2}'
-        fi
+        [[ "$host_path" = /* || "$host_path" = ./* ]] && echo "$host_path"
     done | sort -u
 }
 
-# ------------------------
-# Main commands
-# ------------------------
+# -------------------------------------------------
+# Main command router
+# -------------------------------------------------
 case "$CMD" in
-    start)
-        echo "▶ Starting stack using $COMPOSE_FILE"
+
+    dup)
         docker compose -f "$COMPOSE_FILE" up -d
         ;;
 
-    stop)
-        echo "⏹ Stopping stack"
-        docker compose -f "$COMPOSE_FILE" down -v --remove-orphans
+    dc)
+        docker compose -f "$COMPOSE_FILE" down
         ;;
 
-    restart)
-        echo "🔄 Restarting stack"
-        docker compose -f "$COMPOSE_FILE" down -v --remove-orphans
+    dr)
+        docker compose -f "$COMPOSE_FILE" down
         docker compose -f "$COMPOSE_FILE" up -d
         ;;
 
-    logs)
-        echo "📜 Logs (Ctrl+C to exit)"
+    dl)
         docker compose -f "$COMPOSE_FILE" logs -f "$@"
         ;;
 
-    pull)
-        echo "⬇ Pulling latest images"
+    du)
         docker compose -f "$COMPOSE_FILE" pull
         ;;
 
-    nuke)
-        DRY_RUN=0
-        if [[ "$1" == "--dry-run" ]]; then
-            DRY_RUN=1
+    dn)
+        echo "🧪 DRY RUN — nothing will be deleted"
+        docker compose -f "$COMPOSE_FILE" ps
+        docker compose -f "$COMPOSE_FILE" images
+        docker compose -f "$COMPOSE_FILE" config --volumes
+        echo "🗑 Top-level host folders that would be removed:"
+        get_host_volumes | while read -r dir; do
+            echo "  - $dir"
+        done
+        ;;
+
+    DN)
+        echo "💣⚠ WARNING: This will permanently remove containers, images, volumes, and host folders!"
+        
+        # Dry-run first
+        echo "📝 Preview:"
+        echo "📦 Containers to be stopped and removed:"
+        docker compose -f "$COMPOSE_FILE" ps --services --all | while read svc; do
+            echo "  - $svc"
+        done
+
+        echo "🖼 Images to be removed:"
+        docker compose -f "$COMPOSE_FILE" images -q | while read img; do
+            echo "  - $img"
+        done
+
+        echo "💾 Volumes to be removed:"
+        docker compose -f "$COMPOSE_FILE" config --volumes | while read vol; do
+            echo "  - $vol"
+        done
+
+        echo "🗑 Host folders that would be removed:"
+        TOP_FOLDERS=$(get_host_volumes)
+        for dir in $TOP_FOLDERS; do
+            [[ -d "$dir" ]] && echo "  ✅ $dir" || echo "  ⚠ $dir (not found)"
+        done
+
+        # Confirmation
+        read -rp "⚠ Are you sure you want to proceed with full stack deletion? Type 'YES' to confirm: " CONFIRM
+        if [[ "$CONFIRM" != "YES" ]]; then
+            echo "⏹ Aborted. Nothing was deleted."
+            exit 0
         fi
 
-        echo "💣 Nuking stack: containers, volumes, images, orphans"
+        # Proceed with deletion
+        docker compose -f "$COMPOSE_FILE" down --volumes --remove-orphans
 
-        if [ $DRY_RUN -eq 1 ]; then
-            echo "📝 Dry-run mode: nothing will be deleted"
+        for dir in $TOP_FOLDERS; do
+            if [[ -d "$dir" ]]; then
+                echo "🗑 Removing folder: $dir"
+                sudo rm -rf "$dir"
+            fi
+        done
 
-            echo "📦 Containers that would be stopped and removed:"
-            docker compose -f "$COMPOSE_FILE" ps --services --all | sort -u | while read svc; do
-                echo "  - $svc"
-            done
-
-            echo "🖼 Images that would be removed:"
-            docker compose -f "$COMPOSE_FILE" images -q | sort -u | while read img; do
-                echo "  - $img"
-            done
-
-            echo "💾 Volumes that would be removed:"
-            docker compose -f "$COMPOSE_FILE" config --volumes | sort -u | while read vol; do
-                echo "  - $vol"
-            done
-
-            echo "🗑 Top-level host folders that would be removed:"
-            TOP_LEVEL_FOLDERS=$(get_top_level_folders)
-            for dir in $TOP_LEVEL_FOLDERS; do
-                if [ -d "$dir" ]; then
-                    echo "  ✅ $dir"
-                else
-                    echo "  ⚠ $dir (not found)"
-                fi
-            done
-
-        else
-            # Real deletion
-            docker compose -f "$COMPOSE_FILE" down --volumes --rmi all --remove-orphans
-
-            echo "🗑 Top-level host folders used by this stack:"
-            TOP_LEVEL_FOLDERS=$(get_top_level_folders)
-            for dir in $TOP_LEVEL_FOLDERS; do
-                if [ -d "$dir" ]; then
-                    read -p "⚠ Are you sure you want to delete $dir? [y/N]: " confirm
-                    if [[ "$confirm" =~ ^[Yy]$ ]]; then
-                        echo "🗑 Removing folder: $dir"
-                        sudo rm -rf "$dir"
-                    else
-                        echo "⏹ Skipped folder: $dir"
-                    fi
-                else
-                    echo "⚠ Folder not found: $dir"
-                fi
-            done
-        fi
+        echo "✅ Full stack deleted."
         ;;
 
     *)
         echo "Usage:"
-        echo "  d start             Start stack"
-        echo "  d stop              Stop stack"
-        echo "  d restart           Restart stack"
-        echo "  d ps|status         Show all containers (running + stopped)"
-        echo "  d logs [svc]        Follow logs"
-        echo "  d pull              Pull latest images"
-        echo "  d nuke [--dry-run] Remove containers, volumes, images, orphans, and top-level host folders used by this compose"
+        echo "  dps             Show all containers"
+        echo "  dup             Start stack (docker compose up -d)"
+        echo "  dc              Stop stack"
+        echo "  dr              Restart stack"
+        echo "  dl              Follow logs"
+        echo "  du              Pull images"
+        echo "  dn              Dry-run (preview deletes)"
+        echo "  DN              Full nuke (requires confirmation, uppercase)"
         exit 1
         ;;
 esac
