@@ -13,8 +13,6 @@ Run this one-liner to download the script and make it executable:
 sudo curl -fsSL https://raw.githubusercontent.com/886ppak/docker-d-script/main/d -o /sbin/d && sudo chmod +x /sbin/d
 ```
 
-*(GitHub will automatically show a “Copy” button for this block)*
-
 ---
 
 ## 🛠 Usage
