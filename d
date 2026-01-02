@@ -109,6 +109,3 @@ case "$CMD" in
         echo "💣 Nuking stack: containers, volumes, images, orphans"
 
         if [ $DRY_RUN -eq 1 ]; then
-            echo "📝 Dry-run mode: nothing will be deleted"
-
-            echo "📦 Containers that would be stopped and rem
