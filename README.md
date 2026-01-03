@@ -1,12 +1,12 @@
 # 📦 d — Docker Stack Power Tool
 A fast, minimal command wrapper for Docker Compose stacks. Built for speed, safety, and clean workflows 🚀
 ---
-## ⚡ One-Line Install
+# ⚡ One-Line Install
 ```bash
 sudo curl -fsSL https://raw.githubusercontent.com/886ppak/docker-d-script/main/d -o /sbin/d && sudo chmod +x /sbin/d
 ```
 ---
-## 🧭 First-Time Setup
+# 🧭 First-Time Setup
 Set your Docker workspace location (edit the path if needed).
 # Edit this path to match your Docker folder
 ```bash
@@ -21,13 +21,13 @@ to jump into your Docker workspace.
 | Command (all require `d`) | Alias | Description |
 |---------------------------|-------|-------------|
 | d dps                     | status | 📋 Show all containers (running + stopped) |
-| d start                   | dup    | ▶ Start stack (docker compose up -d) |
-| d stop                    | dc     | ⏹ Stop stack |
-| d restart                 | dr     | 🔄 Restart stack |
-| d logs [svc]              | dl     | 📜 Follow logs |
-| d pull                    | du     | ⬇ Pull latest images |
-| d nuke --dry-run          | dn     | 🧪 Dry-run (preview what would be deleted) |
-| d nuke                    | DN     | 💣 Full nuke (requires confirmation, uppercase) |
+| d start                   |d dup   | ▶ Start stack (docker compose up -d) |
+| d stop                    |d dc    | ⏹ Stop stack |
+| d restart                 |d dr    | 🔄 Restart stack |
+| d logs [svc]              |d dl    | 📜 Follow logs |
+| d pull                    |d du    | ⬇ Pull latest images |
+| d nuke --dry-run          |d dn    | 🧪 Dry-run (preview what would be deleted) |
+| d nuke                    |d DN    | 💣 Full nuke (requires confirmation, uppercase) |
 | d uninstall               | -      | ⚠ Remove script and revert aliases (safe uninstall) |
 ---
 ### 💥 Example Workflow
