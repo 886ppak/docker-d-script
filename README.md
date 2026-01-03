@@ -12,9 +12,7 @@ Set your Docker workspace location (edit the path if needed).
 ```bash
 echo "alias dh='cd /home/docker'" >> ~/.bashrc && source ~/.bashrc
 ```
-# Add alias to jump to your Docker folder
-echo "alias dh='cd \$DOCKER_HOME'" >> ~/.bashrc
-source ~/.bashrc
+Change /home/docker to where you keep you docker container folders
 ✅ After this, just type:
 dh
 to jump into your Docker workspace.
