@@ -3,7 +3,7 @@
 # d — Docker Compose Helper (Full Rewrite)
 # Features:
 # - Interactive DN folder deletion
-# - Auto Bash aliases: .. ... .3 .4 dh
+# - Auto Bash aliases: .. ... .3 .4 dh (active immediately)
 # - d sh with user support
 # - Works with docker compose v2
 # =========================================
@@ -19,14 +19,22 @@ DOCKER_WORKSPACE="/home/docker"  # change this if your Docker folder differs
 COMPOSE_FILES=("docker-compose.yml" "docker-compose.yaml" "compose.yml" "compose.yaml")
 
 # ----------------------------
-# Auto-add Bash navigation aliases
+# Auto-add Bash navigation aliases (active immediately)
 # ----------------------------
 add_aliases() {
+    # Add to ~/.bashrc if missing
     grep -qxF "alias dh='cd $DOCKER_WORKSPACE'" ~/.bashrc || echo "alias dh='cd $DOCKER_WORKSPACE'" >> ~/.bashrc
     grep -qxF "alias ..='cd ..'" ~/.bashrc || echo "alias ..='cd ..'" >> ~/.bashrc
     grep -qxF "alias ...='cd ../..'" ~/.bashrc || echo "alias ...='cd ../..'" >> ~/.bashrc
     grep -qxF "alias .3='cd ../../..'" ~/.bashrc || echo "alias .3='cd ../../..'" >> ~/.bashrc
     grep -qxF "alias .4='cd ../../../..'" ~/.bashrc || echo "alias .4='cd ../../../..'" >> ~/.bashrc
+
+    # Activate in current shell immediately
+    alias dh="cd $DOCKER_WORKSPACE"
+    alias ..="cd .."
+    alias ...="cd ../.."
+    alias .3="cd ../../.."
+    alias .4="cd ../../../.."
 }
 add_aliases
 
