@@ -18,6 +18,12 @@ error will appear but script is working fine script is expecting a compose file 
 ```bash
 source ~/.bashrc
 ```
+if you made an error for your docker home location
+
+```bash
+sudo curl -fsSL https://raw.githubusercontent.com/886ppak/docker-d-script/main/update_dh_whiptail.sh -o /sbin/update_dh_whiptail.sh && sudo chmod +x /sbin/update_dh_whiptail.sh && /sbin/update_dh_whiptail.sh
+```
+
 ---
 
 ✅ After this, just type:
