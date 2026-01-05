@@ -23,6 +23,10 @@ if you made an error for your docker home location
 ```bash
 sudo curl -fsSL https://raw.githubusercontent.com/886ppak/docker-d-script/main/update-dh -o /sbin/update-dh && sudo chmod +x /sbin/update-dh && /sbin/update-dh
 ```
+then 
+```bash
+source ~/.bashrc
+```
 
 ---
 
