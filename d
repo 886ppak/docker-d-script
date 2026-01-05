@@ -1,6 +1,6 @@
 #!/bin/bash
 # =========================================
-# d — Docker Compose Helper (Full Rewrite)
+# d — Docker Compose Helper (Complete Rewrite)
 # =========================================
 
 # Look for compose files in this order
@@ -77,7 +77,7 @@ d_sh() {
     if [[ $(echo "$services" | wc -l) -gt 1 ]]; then
         echo "Select service:"
         select service in $services; do
-            service=$(echo "$service" | tr -d '\n')
+            service=$(echo "$service" | tr -d '\n')  # trim newlines
             [[ -n "$service" ]] || continue
             break
         done
@@ -85,17 +85,17 @@ d_sh() {
         service="$services"
     fi
 
-    # Check if container is running
+    # Start container if not running
     if ! docker compose -f "$COMPOSE_FILE" ps -q "$service" &>/dev/null; then
         echo "⚠ Service '$service' is not running. Starting it..."
         docker compose -f "$COMPOSE_FILE" up -d "$service"
     fi
 
-    # Exec into container
+    # Exec into container interactively with TTY
     if [[ -z "$user" ]]; then
-        docker compose -f "$COMPOSE_FILE" exec "$service" sh
+        docker compose exec -it "$service" sh
     else
-        docker compose -f "$COMPOSE_FILE" exec -u "$user" "$service" sh
+        docker compose exec -it -u "$user" "$service" sh
     fi
 }
 
