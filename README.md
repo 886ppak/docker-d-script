@@ -17,6 +17,9 @@ echo "alias dh='cd /home/docker'" >> ~/.bashrc && source ~/.bashrc
 ```
 Change `/home/docker` to wherever you keep your Docker container folders.  
 
+```bash
+source ~/.bashrc
+```
 ✅ After this, just type:
 ```bash
 dh
