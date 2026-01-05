@@ -1,211 +1,183 @@
 #!/bin/bash
-# ============================================================
-# d — Docker Compose Helper
-# ============================================================
-# Features:
-# - Auto-detect compose file in current directory
-# - Lifecycle helpers (up/down/restart/logs/pull)
-# - Safe dry-run + destructive nuke mode
-# - Auto shell into containers (d sh)
-#   - root by default
-#   - --user (container default)
-#   - -u USER (specific user)
-# ============================================================
+# =========================================
+# d — Docker Compose Helper (Full Rewrite)
+# =========================================
 
-set -euo pipefail
+# Look for compose files in this order
+COMPOSE_FILES=("docker-compose.yml" "docker-compose.yaml" "compose.yml" "compose.yaml")
 
-# ------------------------------------------------------------
-# Config
-# ------------------------------------------------------------
-COMPOSE_FILES=(
-  docker-compose.yml
-  docker-compose.yaml
-  compose.yml
-  compose.yaml
-)
-
-CMD="${1:-}"
+CMD="$1"
 shift || true
 
-# ------------------------------------------------------------
-# Commands that do NOT require compose
-# ------------------------------------------------------------
+# ----------------------------
+# Commands that do NOT require a compose file
+# ----------------------------
 case "$CMD" in
-  uninstall)
-    echo "⚠ Removing d command..."
-    sudo rm -f /sbin/d
-    sed -i '/alias dh=/d' ~/.bashrc 2>/dev/null || true
-    echo "✅ d removed. Restart shell to apply."
-    exit 0
-    ;;
-  dps|status)
-    docker ps -a
-    exit 0
-    ;;
+    uninstall)
+        echo "⚠ Removing d command..."
+        sudo rm -f /sbin/d
+        sed -i '/alias dh=/d' ~/.bashrc
+        echo "✅ d removed. Restart shell to apply."
+        exit 0
+        ;;
+    dps|status)
+        docker ps -a
+        exit 0
+        ;;
 esac
 
-# ------------------------------------------------------------
-# Locate compose file
-# ------------------------------------------------------------
+# ----------------------------
+# Find the compose file
+# ----------------------------
 COMPOSE_FILE=""
 for f in "${COMPOSE_FILES[@]}"; do
-  [[ -f "$f" ]] && COMPOSE_FILE="$f" && break
+    [[ -f "$f" ]] && COMPOSE_FILE="$f" && break
 done
 
 if [[ -z "$COMPOSE_FILE" ]]; then
-  echo "❌ No docker compose file found in: $(pwd)"
-  exit 1
+    echo "❌ No docker-compose file found in $(pwd)"
+    exit 1
 fi
 
-DC="docker compose -f $COMPOSE_FILE"
-
-# ------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------
+# ----------------------------
+# Extract top-level host folders (SAFE)
+# ----------------------------
 get_host_folders() {
-  grep -E '^[[:space:]]*-[[:space:]]*(\.\/|/)' "$COMPOSE_FILE" \
+    grep -E '^[[:space:]]*-[[:space:]]*(\.\/|/)' "$COMPOSE_FILE" \
     | sed -E 's/.*-\s*([^:]+).*/\1/' \
     | awk -F/ '{print $1"/"$2}' \
     | sort -u
 }
 
-select_service() {
-  mapfile -t services < <($DC ps --services 2>/dev/null)
-
-  if [[ "${#services[@]}" -eq 0 ]]; then
-    echo "❌ No running services"
-    exit 1
-  fi
-
-  if [[ "${#services[@]}" -eq 1 ]]; then
-    echo "${services[0]}"
-    return
-  fi
-
-  echo "Select service:"
-  select service in "${services[@]}"; do
-    [[ -n "$service" ]] && echo "$service" && return
-  done
-}
-
-shell_into_service() {
-  local exec_user="root"
-
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --user)
-        exec_user=""
+# ----------------------------
+# Shell into a container
+# ----------------------------
+d_sh() {
+    local user="root"
+    # Parse optional args
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --user) user="" ;;   # default container user
+            --root) user="root" ;;
+            -u) shift; user="$1" ;;
+        esac
         shift
-        ;;
-      --root)
-        exec_user="root"
-        shift
-        ;;
-      -u)
-        exec_user="$2"
-        shift 2
-        ;;
-      *)
-        shift
-        ;;
-    esac
-  done
-
-  service="$(select_service)"
-
-  if [[ -n "$exec_user" ]]; then
-    $DC exec -u "$exec_user" "$service" bash 2>/dev/null || \
-    $DC exec -u "$exec_user" "$service" sh
-  else
-    $DC exec "$service" bash 2>/dev/null || \
-    $DC exec "$service" sh
-  fi
-}
-
-# ------------------------------------------------------------
-# Command handlers
-# ------------------------------------------------------------
-case "$CMD" in
-
-  dup|up|start)
-    $DC up -d
-    ;;
-
-  dc|down|stop)
-    $DC down
-    ;;
-
-  dr|restart)
-    $DC down
-    $DC up -d
-    ;;
-
-  dl|logs)
-    $DC logs -f "$@"
-    ;;
-
-  du|pull)
-    $DC pull
-    ;;
-
-  sh|shell)
-    shell_into_service "$@"
-    ;;
-
-  dn|DN)
-    DRY_RUN=1
-    [[ "$CMD" == "DN" ]] && DRY_RUN=0
-
-    echo "💣 FULL NUKE MODE"
-    echo "------------------------------------"
-
-    CONTAINERS="$($DC ps --services || true)"
-    FOLDERS="$(get_host_folders || true)"
-
-    echo "Containers:"
-    echo "$CONTAINERS" | sed 's/^/  - /'
-
-    echo "Folders:"
-    for f in $FOLDERS; do
-      echo "  - $f"
     done
 
-    if [[ "$DRY_RUN" -eq 1 ]]; then
-      echo
-      echo "🧪 DRY RUN — nothing will be deleted."
-      exit 0
+    # Get list of services
+    local services
+    services=$(docker compose -f "$COMPOSE_FILE" ps --services)
+    if [[ -z "$services" ]]; then
+        echo "❌ No services found in $COMPOSE_FILE"
+        return 1
     fi
 
-    echo
-    read -rp "Type YES to confirm FULL DELETION: " CONFIRM
-    [[ "$CONFIRM" != "YES" ]] && echo "Aborted." && exit 1
+    # Select service if multiple
+    local service
+    if [[ $(echo "$services" | wc -l) -gt 1 ]]; then
+        echo "Select service:"
+        select service in $services; do
+            service=$(echo "$service" | tr -d '\n')
+            [[ -n "$service" ]] || continue
+            break
+        done
+    else
+        service="$services"
+    fi
 
-    $DC down --volumes --remove-orphans
+    # Check if container is running
+    if ! docker compose -f "$COMPOSE_FILE" ps -q "$service" &>/dev/null; then
+        echo "⚠ Service '$service' is not running. Starting it..."
+        docker compose -f "$COMPOSE_FILE" up -d "$service"
+    fi
 
-    for dir in $FOLDERS; do
-      if [[ -d "$dir" ]]; then
-        echo "🗑 Removing $dir"
-        rm -rf "$dir"
-      fi
-    done
+    # Exec into container
+    if [[ -z "$user" ]]; then
+        docker compose -f "$COMPOSE_FILE" exec "$service" sh
+    else
+        docker compose -f "$COMPOSE_FILE" exec -u "$user" "$service" sh
+    fi
+}
 
-    echo "✅ Full stack removed."
-    ;;
+# ----------------------------
+# Command handlers
+# ----------------------------
+case "$CMD" in
+    dup|start)
+        docker compose -f "$COMPOSE_FILE" up -d
+        ;;
 
-  *)
-    cat <<EOF
-Usage:
-  d dup | up              → start stack
-  d dc  | down            → stop stack
-  d dr                    → restart stack
-  d dl                    → logs (follow)
-  d du                    → pull images
-  d sh [--root|--user|-u USER]
-                          → shell into container
-  d dn                    → dry-run delete preview
-  d DN                    → full destructive delete
-  d dps | status          → docker ps -a
-  d uninstall             → remove d command
-EOF
-    ;;
+    dc|stop)
+        docker compose -f "$COMPOSE_FILE" down
+        ;;
+
+    dr|restart)
+        docker compose -f "$COMPOSE_FILE" down
+        docker compose -f "$COMPOSE_FILE" up -d
+        ;;
+
+    dl|logs)
+        docker compose -f "$COMPOSE_FILE" logs -f "$@"
+        ;;
+
+    du|pull)
+        docker compose -f "$COMPOSE_FILE" pull
+        ;;
+
+    sh)
+        d_sh "$@"
+        ;;
+
+    dn|DN)
+        DRY_RUN=1
+        [[ "$CMD" == "DN" ]] && DRY_RUN=0
+
+        echo "💣 FULL NUKE MODE"
+        echo "------------------------------------"
+
+        local containers images folders
+        containers=$(docker compose -f "$COMPOSE_FILE" ps --services)
+        images=$(docker compose -f "$COMPOSE_FILE" images -q)
+        folders=$(get_host_folders)
+
+        echo "Containers:"
+        echo "$containers" | sed 's/^/  - /'
+
+        echo "Folders:"
+        for f in $folders; do
+            echo "  - $f"
+        done
+
+        if [[ $DRY_RUN -eq 1 ]]; then
+            echo
+            echo "🧪 DRY RUN — nothing will be deleted."
+            exit 0
+        fi
+
+        echo
+        read -rp "Type YES to confirm FULL DELETION: " CONFIRM
+        [[ "$CONFIRM" != "YES" ]] && echo "Aborted." && exit 1
+
+        docker compose -f "$COMPOSE_FILE" down --volumes --remove-orphans
+
+        for dir in $folders; do
+            [[ -d "$dir" ]] && echo "🗑 Removing $dir" && rm -rf "$dir"
+        done
+
+        echo "✅ Full stack removed."
+        ;;
+
+    *)
+        echo "Usage:"
+        echo "  d dup        → start stack"
+        echo "  d dc         → stop stack"
+        echo "  d dr         → restart stack"
+        echo "  d dl         → logs"
+        echo "  d du         → pull images"
+        echo "  d sh         → shell into a container"
+        echo "       --root | --user | -u USER"
+        echo "  d dn         → dry-run delete preview"
+        echo "  d DN         → full destructive delete"
+        echo "  d uninstall  → remove script"
+        ;;
 esac
