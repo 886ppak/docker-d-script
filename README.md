@@ -21,7 +21,7 @@ source ~/.bashrc
 if you made an error for your docker home location
 
 ```bash
-sudo curl -fsSL https://raw.githubusercontent.com/886ppak/docker-d-script/main/update_dh_whiptail.sh -o /sbin/update_dh_whiptail.sh && sudo chmod +x /sbin/update_dh_whiptail.sh && /sbin/update_dh_whiptail.sh
+sudo curl -fsSL https://raw.githubusercontent.com/886ppak/docker-d-script/main/update-dh -o /sbin/update-dh && sudo chmod +x /sbin/update-dh && /sbin/update-dh
 ```
 
 ---
