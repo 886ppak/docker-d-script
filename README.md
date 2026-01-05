@@ -17,6 +17,9 @@ echo "alias dh='cd /home/docker'" >> ~/.bashrc && source ~/.bashrc
 ```
 Change `/home/docker` to wherever you keep your Docker container folders.  
 
+error will appear but script is working fine script is expecting a compose file in same location for other d commands
+❌ No docker-compose file found in /root
+
 ```bash
 source ~/.bashrc
 ```
