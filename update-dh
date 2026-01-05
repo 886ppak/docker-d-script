@@ -1,0 +1,40 @@
+#!/bin/bash
+# =========================================
+# Interactive Docker Workspace Updater (Whiptail)
+# Updates the 'dh' alias via a popup input box
+# =========================================
+
+# Check if whiptail is installed
+if ! command -v whiptail >/dev/null 2>&1; then
+    echo "❌ whiptail is not installed. Please install it first (e.g., opkg install whiptail)."
+    exit 1
+fi
+
+# Get current dh path from bashrc
+CURRENT_DH=$(grep "alias dh=" ~/.bashrc | cut -d"'" -f2)
+CURRENT_DH=${CURRENT_DH:-/share/docker}
+
+# Show whiptail input box
+NEW_DH=$(whiptail --title "Docker Workspace Setup" \
+    --inputbox "Enter your Docker workspace folder:" 10 60 "$CURRENT_DH" 3>&1 1>&2 2>&3)
+
+# If user pressed Cancel, exit
+if [[ $? -ne 0 ]]; then
+    echo "❌ Operation cancelled."
+    exit 1
+fi
+
+# Use default if empty
+NEW_DH=${NEW_DH:-$CURRENT_DH}
+
+# Remove old dh alias from bashrc
+sed -i "/alias dh=/d" ~/.bashrc
+
+# Add new dh alias
+echo "alias dh='cd $NEW_DH'" >> ~/.bashrc
+
+# Activate alias immediately
+alias dh="cd $NEW_DH"
+
+echo "✅ dh alias updated to: $NEW_DH"
+echo "You can now use 'dh' to jump to your Docker workspace immediately."
