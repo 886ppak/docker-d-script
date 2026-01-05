@@ -2,27 +2,24 @@
 A fast, minimal command wrapper for Docker Compose stacks. Built for speed, safety, and clean workflows 🚀
 ---
 
-## ⚡ One-Line Install
+## 🧭 First-Time Setup 2 steps
+Set your Docker workspace location (edit the path if needed).  
+
+Change `/home/docker` after pasting script below in interactive window to wherever you keep your Docker container compose folders are kept .
+
+## Step 1
 ```bash
 sudo curl -fsSL https://raw.githubusercontent.com/886ppak/docker-d-script/main/d -o /sbin/d && sudo chmod +x /sbin/d && /sbin/d
 ```
----
-
-## 🧭 First-Time Setup
-Set your Docker workspace location (edit the path if needed).  
-
-### Edit this path to match your Docker folder
-```bash
-echo "alias dh='cd /home/docker'" >> ~/.bashrc && source ~/.bashrc
-```
-Change `/home/docker` to wherever you keep your Docker container folders.  
-
 error will appear but script is working fine script is expecting a compose file in same location for other d commands
 ❌ No docker-compose file found in /root
 
+## Step 2
 ```bash
 source ~/.bashrc
 ```
+---
+
 ✅ After this, just type:
 ```bash
 dh
