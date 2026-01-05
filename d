@@ -2,52 +2,59 @@
 # =========================================
 # d — Docker Compose Helper (Full Rewrite)
 # Features:
-# - Interactive DN folder deletion
-# - Auto Bash aliases: .. ... .3 .4 dh (active immediately)
-# - d sh with user support
-# - Works with docker compose v2
+# - Interactive Docker workspace alias (dh)
+# - Auto Bash navigation aliases .. ... .3 .4
+# - d sh with user support (-u USER, --root)
+# - Interactive DN folder deletion using whiptail
+# - Works with Docker Compose v2
 # =========================================
 
 # ----------------------------
-# Configurable Docker workspace
+# Configure Docker workspace interactively (dh alias)
 # ----------------------------
-DOCKER_WORKSPACE="/home/docker"  # change this if your Docker folder differs
+if ! grep -q "alias dh=" ~/.bashrc; then
+    if ! command -v whiptail >/dev/null 2>&1; then
+        echo "❌ whiptail not installed. Using default /home/docker"
+        DOCKER_WORKSPACE="/home/docker"
+    else
+        DOCKER_WORKSPACE=$(whiptail --title "Docker Workspace Setup" \
+            --inputbox "Enter your Docker workspace folder:" 10 60 "/home/docker" 3>&1 1>&2 2>&3)
+        DOCKER_WORKSPACE=${DOCKER_WORKSPACE:-/home/docker}
+    fi
+    # Write alias to bashrc and activate immediately
+    grep -qxF "alias dh='cd $DOCKER_WORKSPACE'" ~/.bashrc || echo "alias dh='cd $DOCKER_WORKSPACE'" >> ~/.bashrc
+    alias dh="cd $DOCKER_WORKSPACE"
+    echo "✅ dh alias set to $DOCKER_WORKSPACE"
+else
+    DOCKER_WORKSPACE=$(grep "alias dh=" ~/.bashrc | cut -d"'" -f2)
+fi
 
 # ----------------------------
-# Compose file detection
+# Auto add other navigation aliases
+# ----------------------------
+declare -A aliases=(
+    [".."]="cd .."
+    ["..."]="cd ../.."
+    [".3"]="cd ../../.."
+    [".4"]="cd ../../../.."
+)
+
+for a in "${!aliases[@]}"; do
+    grep -qxF "alias $a='${aliases[$a]}'" ~/.bashrc || echo "alias $a='${aliases[$a]}'" >> ~/.bashrc
+    alias $a="${aliases[$a]}"
+done
+
+# ----------------------------
+# Detect docker compose file
 # ----------------------------
 COMPOSE_FILES=("docker-compose.yml" "docker-compose.yaml" "compose.yml" "compose.yaml")
-
-# ----------------------------
-# Auto-add Bash navigation aliases (active immediately)
-# ----------------------------
-add_aliases() {
-    # Add to ~/.bashrc if missing
-    grep -qxF "alias dh='cd $DOCKER_WORKSPACE'" ~/.bashrc || echo "alias dh='cd $DOCKER_WORKSPACE'" >> ~/.bashrc
-    grep -qxF "alias ..='cd ..'" ~/.bashrc || echo "alias ..='cd ..'" >> ~/.bashrc
-    grep -qxF "alias ...='cd ../..'" ~/.bashrc || echo "alias ...='cd ../..'" >> ~/.bashrc
-    grep -qxF "alias .3='cd ../../..'" ~/.bashrc || echo "alias .3='cd ../../..'" >> ~/.bashrc
-    grep -qxF "alias .4='cd ../../../..'" ~/.bashrc || echo "alias .4='cd ../../../..'" >> ~/.bashrc
-
-    # Activate in current shell immediately
-    alias dh="cd $DOCKER_WORKSPACE"
-    alias ..="cd .."
-    alias ...="cd ../.."
-    alias .3="cd ../../.."
-    alias .4="cd ../../../.."
-}
-add_aliases
-
-# ----------------------------
-# Get Compose file
-# ----------------------------
 COMPOSE_FILE=""
 for f in "${COMPOSE_FILES[@]}"; do
     [[ -f "$f" ]] && COMPOSE_FILE="$f" && break
 done
 
 # ----------------------------
-# Command parsing
+# Parse command
 # ----------------------------
 CMD="$1"
 shift || true
@@ -119,7 +126,6 @@ d_sh() {
         service="$services"
     fi
 
-    # Start container if not running
     if ! docker compose -f "$COMPOSE_FILE" ps -q "$service" &>/dev/null; then
         echo "⚠ Service '$service' not running. Starting..."
         docker compose -f "$COMPOSE_FILE" up -d "$service"
@@ -165,13 +171,11 @@ case "$CMD" in
         read -rp "Type YES to proceed: " CONFIRM
         [[ "$CONFIRM" != "YES" ]] && echo "Aborted." && exit 1
 
-        # Stop containers
         docker compose -f "$COMPOSE_FILE" down --volumes --remove-orphans
 
-        # Interactive folder deletion with whiptail
         folders=$(get_host_folders)
         if ! command -v whiptail >/dev/null 2>&1; then
-            echo "❌ whiptail not installed. Please install with: sudo apt install whiptail"
+            echo "❌ whiptail not installed. Please install: sudo apt install whiptail"
             exit 1
         fi
 
@@ -195,7 +199,7 @@ case "$CMD" in
         ;;
     *)
         echo "Usage:"
-        echo "  d dh         → jump to Docker workspace"
+        echo "  d dh         → jump to Docker workspace (configurable)"
         echo "  d dup        → start stack"
         echo "  d dc         → stop stack"
         echo "  d dr         → restart stack"
