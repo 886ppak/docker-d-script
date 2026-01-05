@@ -4,7 +4,7 @@ A fast, minimal command wrapper for Docker Compose stacks. Built for speed, safe
 
 ## ⚡ One-Line Install
 ```bash
-sudo curl -fsSL https://raw.githubusercontent.com/886ppak/docker-d-script/main/d -o /sbin/d && sudo chmod +x /sbin/d
+sudo curl -fsSL https://raw.githubusercontent.com/886ppak/docker-d-script/main/d -o /sbin/d && sudo chmod +x /sbin/d && /sbin/d
 ```
 ---
 
