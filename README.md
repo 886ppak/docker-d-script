@@ -18,7 +18,7 @@ error will appear but script is working fine script is expecting a compose file 
 ```bash
 source ~/.bashrc
 ```
-if you made an error for your docker home location
+if you made an error for your docker home location remove the cd if it appears in the interactive box
 
 ```bash
 sudo curl -fsSL https://raw.githubusercontent.com/886ppak/docker-d-script/main/update-dh -o /sbin/update-dh && sudo chmod +x /sbin/update-dh && /sbin/update-dh
@@ -26,6 +26,10 @@ sudo curl -fsSL https://raw.githubusercontent.com/886ppak/docker-d-script/main/u
 then 
 ```bash
 source ~/.bashrc
+```
+sanity check 
+```bash
+alias
 ```
 
 ---
